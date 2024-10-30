@@ -1,0 +1,93 @@
+
+services:
+  mariadb:
+    image: mariadb
+    build: requirements/mariadb/.
+    container_name: mariadb
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - my_network
+    env_file:
+      - .env
+
+  wordpress:
+    image: wordpress
+    build: requirements/wordpress/.
+    container_name: wordpress
+    depends_on:
+      - mariadb #WordPress can communicate directly with MariaDB using mariadb:3306 without exposing MariaDB’s port to the host or mapping it.
+    volumes:
+      - wp-data:/var/www/wordpress
+    networks:
+      - my_network
+    env_file:
+      - .env
+    #No need the EXPOSE directive for containers that only communicate internally within the Docker network. WordPress talks to MariaDB directly on the custom network using mariadb:3306 if the MariaDB container runs on its default port 3306.
+
+
+  nginx:
+    image: nginx
+    build: requirements/nginx/.
+    container_name: nginx
+    depends_on:
+      - wordpress #NGINX can communicate with WordPress on wordpress:80 without needing to expose WordPress’s port to the host.
+    ports:
+      - 443:443
+    volumes:
+      - wp-data:/var/www/wordpress
+    networks:
+      - my_network
+    env_file:
+      - .env
+
+networks:
+  my_network:
+
+volumes:
+  wp-data:
+    name: wp-data
+    # driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/khanhayf/data/wp-data
+
+
+
+  db-data:
+    name: db-data
+    # driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/khanhayf/data/db-data
+
+#1. volumes: - wp-data:/var/www/wordpress
+#Volume Declaration:
+# #This line specifies that the Docker container will use a volume namedwp-data.
+#Mounting Location:
+# #The wp-data volume is mounted to the /var/www/wordpress directory insidethe container.
+#What It Means:
+# #When the container starts, any files that WordPress creates or modifies in var/www/wordpress will be stored in the wp-data volume.
+# #The data in this volume is persistent, meaning it will remain even if thecontainer is stopped or removed.
+# #This setup allows for data management and storage without being directlytied to a specific path on the host.
+#2.
+#Volume Definition:
+#
+#This section defines the wp-data volume in detail.
+#name: wp-data:
+#
+# #This sets the name of the volume to wp-data. This is how you will referenceit in other parts of your Docker Compose file.
+#driver_opts:
+#
+# #This specifies options for the volume driver. In this case, you’re usingbind options.
+#type: none:
+#
+# #Indicates that the volume is not using a specific Docker volume type butinstead is being configured to bind mount.
+#o: bind:
+#
+# #This option tells Docker to treat this volume as a bind mount rather than astandard managed volume.
+#device: /home/khanhayf/data/wp-data:
+#
+# # # #This specifies the actual path on the host machine that will be used forthe bind mount. It means that the directory /home/khanhayf/data/wp-data onthe host will be directly accessible in the container at the specifiedmount point (/var/www/wordpress).
